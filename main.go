@@ -37,18 +37,18 @@ func main() {
 		myCfg.middlewareMetricsInc(
 			http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	})
 
-	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		hits := strconv.Itoa(myCfg.GetHits())
 		w.Write([]byte("Hits: " + hits))
 	})
 
-	mux.HandleFunc("POST /reset", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/reset", func(w http.ResponseWriter, r *http.Request) {
 		myCfg.Reset()
 	})
 
