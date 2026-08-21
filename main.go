@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
 	"sync/atomic"
 )
 
@@ -42,13 +42,16 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
-	mux.HandleFunc("GET /api/metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/metrics", func(w http.ResponseWriter, r *http.Request) {
+		header := w.Header()
+		header.Set("Content-Type", "text/html")
 		w.WriteHeader(200)
-		hits := strconv.Itoa(myCfg.GetHits())
-		w.Write([]byte("Hits: " + hits))
+		hits := myCfg.GetHits()
+		hitString := fmt.Sprintf("<html>\n  <body>\n    <h1>Welcome, Chirpy Admin!</h1>\n    <p>Chirpy has been visited %d times!</p>\n  </body>\n</html>\n", hits)
+		w.Write([]byte(hitString))
 	})
 
-	mux.HandleFunc("POST /api/reset", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/reset", func(w http.ResponseWriter, r *http.Request) {
 		myCfg.Reset()
 	})
 
