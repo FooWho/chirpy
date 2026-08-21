@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -55,6 +58,84 @@ func main() {
 		myCfg.Reset()
 	})
 
+	mux.HandleFunc("POST /api/validate_chirp", func(w http.ResponseWriter, r *http.Request) {
+		type parameters struct {
+			Body string `json:"body"`
+		}
+
+		decoder := json.NewDecoder(r.Body)
+		params := parameters{}
+		err := decoder.Decode(&params)
+		if err != nil {
+			log.Printf("Error decoding parameters: %s", err)
+			respondWithError(w, 500, "Error decoding parameters")
+			return
+		}
+		if len(params.Body) <= 140 {
+			params.Body = replaceBadWords(params.Body)
+			respondWithJSON(w, 200, params.Body)
+		} else {
+			respondWithError(w, 400, "Chirp too long")
+		}
+	})
+
 	s := &http.Server{Addr: ":8080", Handler: mux}
 	s.ListenAndServe()
+}
+
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	type parameters struct {
+		Error string `json:"error"`
+	}
+
+	params := parameters{}
+	params.Error = msg
+
+	dat, err := json.Marshal(params)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		respondWithError(w, 500, "Error marshalling json")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(dat)
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload any) {
+	type returnVals struct {
+		CleanedBody string `json:"cleaned_body"`
+	}
+	respBody := returnVals{}
+	cleanedBody, ok := payload.(string)
+	if !ok {
+		fmt.Printf("blah")
+	} else {
+		respBody = returnVals{
+			CleanedBody: cleanedBody,
+		}
+	}
+
+	dat, err := json.Marshal(respBody)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		respondWithError(w, 500, "Error marshalling json")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(dat)
+}
+
+func replaceBadWords(s string) string {
+	words := strings.Split(s, " ")
+	for i, word := range words {
+		if strings.ToLower(word) == "kerfuffle" ||
+			strings.ToLower(word) == "sharbert" ||
+			strings.ToLower(word) == "fornax" {
+			words[i] = "****"
+		}
+	}
+	cleanS := strings.Join(words, " ")
+	return cleanS
 }
