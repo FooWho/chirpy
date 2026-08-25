@@ -7,3 +7,6 @@ VALUES (
     $1 
 )
 RETURNING *;
+
+-- name: ResetUsers :exec
+TRUNCATE TABLE users CASCADE;

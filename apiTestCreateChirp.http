@@ -1,0 +1,7 @@
+POST http://localhost:8080/api/chirps HTTP/1.1
+content-type: application/json
+
+{
+    "body":"This is a chirp with a bad word - fornax - .",
+    "user_id":"7e3daafb-717a-4b4d-bedd-31c499a37a1a"
+}

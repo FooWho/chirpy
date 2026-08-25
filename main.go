@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -30,6 +31,7 @@ func (apc *apiConfig) GetHits() int {
 
 func (apc *apiConfig) Reset() {
 	apc.fileserverHits = atomic.Int32{}
+	apc.dbQueries.ResetUsers(context.Background())
 }
 
 func (apc *apiConfig) IncrementHits() {
@@ -49,9 +51,17 @@ type cleanedBody struct {
 
 type sUser struct {
 	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at`
-	UpdatedAt time.Time `json:"updated_at`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+}
+
+type sChirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserId    uuid.UUID `json:"user_id"`
 }
 
 func main() {
@@ -78,45 +88,23 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
-	mux.HandleFunc("GET /admin/metrics", myCfg.getMetrics)
-	/*
-		mux.HandleFunc("GET /admin/metrics", func(w http.ResponseWriter, r *http.Request) {
-			header := w.Header()
-			header.Set("Content-Type", "text/html")
-			w.WriteHeader(200)
-			hits := myCfg.GetHits()
-			hitString := fmt.Sprintf("<html>\n  <body>\n    <h1>Welcome, Chirpy Admin!</h1>\n    <p>Chirpy has been visited %d times!</p>\n  </body>\n</html>\n", hits)
-			w.Write([]byte(hitString))
-		})
-	*/
-
 	mux.HandleFunc("POST /admin/reset", func(w http.ResponseWriter, r *http.Request) {
-		myCfg.Reset()
-	})
-	mux.HandleFunc("POST /api/validate_chirp", validateChirp)
-	/*
-		mux.HandleFunc("POST /api/validate_chirp", func(w http.ResponseWriter, r *http.Request) {
-			type parameters struct {
-				Body string `json:"body"`
-			}
-
-			decoder := json.NewDecoder(r.Body)
-			params := parameters{}
-			err := decoder.Decode(&params)
+		if myCfg.platform == "dev" {
+			myCfg.Reset()
+			err := myCfg.dbQueries.ResetUsers(r.Context())
 			if err != nil {
-				log.Printf("Error decoding parameters: %s", err)
-				respondWithError(w, 500, "Error decoding parameters")
+				respondWithError(w, 500, "Error resetting users table")
 				return
 			}
-			if len(params.Body) <= 140 {
-				params.Body = replaceBadWords(params.Body)
-				respondWithJSON(w, 200, params.Body)
-			} else {
-				respondWithError(w, 400, "Chirp too long")
-			}
-		})
-	*/
+			w.WriteHeader(200)
+			w.Write([]byte("OK"))
+		} else {
+			respondWithError(w, 403, "Forbidden")
+		}
+	})
+	mux.HandleFunc("POST /api/chirps", myCfg.chirp)
 	mux.HandleFunc("POST /api/users", myCfg.createUser)
+	mux.HandleFunc("GET /admin/metrics", myCfg.getMetrics)
 
 	s := &http.Server{Addr: ":8080", Handler: mux}
 	s.ListenAndServe()
@@ -189,6 +177,36 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (cfg *apiConfig) chirp(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Body   string    `json:"body"`
+		UserId uuid.UUID `json:"user_id"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		respondWithError(w, 500, "Error decoding parameters")
+		return
+	}
+	if len(params.Body) <= 140 {
+		cleanedBody := replaceBadWords(params.Body)
+		createChirpParams := database.CreateChirpParams{Body: cleanedBody, UserID: params.UserId}
+		dbChirp, err := cfg.dbQueries.CreateChirp(r.Context(), createChirpParams)
+		if err != nil {
+			log.Printf("Error creating chirp: %s", err)
+			respondWithError(w, 500, "Error creating chirp")
+			return
+		}
+		validChirp := sChirp{ID: dbChirp.ID, CreatedAt: dbChirp.CreatedAt, UpdatedAt: dbChirp.UpdatedAt, Body: dbChirp.Body, UserId: dbChirp.UserID}
+		respondWithJSON(w, 201, validChirp)
+	} else {
+		respondWithError(w, 400, "Chirp too long")
+	}
+}
+
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
@@ -208,7 +226,8 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, params.Email)
 		return
 	}
-	respondWithJSON(w, 200, user)
+	resp := sUser{ID: user.ID, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt, Email: user.Email}
+	respondWithJSON(w, 201, resp)
 }
 
 func (cfg *apiConfig) getMetrics(w http.ResponseWriter, r *http.Request) {
