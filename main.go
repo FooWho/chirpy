@@ -299,3 +299,7 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (cfg *apiConfig) GetSecret() ([]byte, error) {
+	return []byte(cfg.tokenSecret), nil
+}
