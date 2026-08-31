@@ -147,10 +147,8 @@ func replaceBadWords(s string) string {
 
 func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
-
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
@@ -159,9 +157,17 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Error decoding parameters")
 		return
 	}
+	ptoken, err := auth.GetBearerToken(r.Header)
+	id, err := auth.ValidateJWT(ptoken, cfg.tokenSecret)
+	if err != nil {
+		log.Printf("Bad token for %s", ptoken)
+		respondWithError(w, http.StatusUnauthorized, "Bad token for user")
+	}
+	fmt.Printf("%s\n", ptoken)
+
 	if len(params.Body) <= 140 {
 		cleanedBody := replaceBadWords(params.Body)
-		createChirpParams := database.CreateChirpParams{Body: cleanedBody, UserID: params.UserId}
+		createChirpParams := database.CreateChirpParams{Body: cleanedBody, UserID: id}
 		dbChirp, err := cfg.dbQueries.CreateChirp(r.Context(), createChirpParams)
 		if err != nil {
 			log.Printf("Error creating chirp: %s", err)
@@ -228,29 +234,53 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
+	type loginUserRequestParams struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	type loginUserResponseParams struct {
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		TokenJWT     string    `json:"token_jwt"`
+		TokenRefresh string    `json:"token_refresh"`
+	}
+
 	decoder := json.NewDecoder(r.Body)
-	user := apiUser{}
-	err := decoder.Decode(&user)
+	params := loginUserRequestParams{}
+	err := decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error logging in user: %s", err)
-		respondWithError(w, http.StatusInternalServerError, user.Email)
+		respondWithError(w, http.StatusInternalServerError, params.Email)
 	}
-	dbUser, err := cfg.dbQueries.GetUserByEmail(r.Context(), user.Email)
+	dbUser, err := cfg.dbQueries.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		log.Printf("Error logging in user: %s", err)
-		respondWithError(w, http.StatusInternalServerError, user.Email)
+		respondWithError(w, http.StatusInternalServerError, params.Email)
 	}
-	match, err := auth.CheckPasswordHash(user.Password, dbUser.HashedPassword)
+	match, err := auth.CheckPasswordHash(params.Password, dbUser.HashedPassword)
 	if err != nil {
 		log.Printf("Error logging in user: %s", err)
-		respondWithError(w, http.StatusInternalServerError, user.Email)
+		respondWithError(w, http.StatusInternalServerError, params.Email)
 	}
 	if match {
-		user = databaseUserToAPIUser(dbUser)
+		user := databaseUserToAPIUser(dbUser)
+		duration, err := time.ParseDuration("1h")
+		if err != nil {
+			log.Print("Error creating duration")
+			respondWithError(w, http.StatusInternalServerError, "Error creating duration")
+		}
+		token, err := auth.MakeJWT(user.ID, cfg.tokenSecret, duration)
+		if err != nil {
+			log.Printf("Error creating token for user %s\n", user.Email)
+			respondWithError(w, http.StatusInternalServerError, params.Email)
+		}
 		log.Printf("User %s logged in with password %s", user.Email, user.Password)
-		respondWithJSON(w, http.StatusOK, user)
+		loginUserResponse := loginUserResponseParams{ID: user.ID, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt, Email: user.Email, Token: token}
+		respondWithJSON(w, http.StatusOK, loginUserResponse)
 	} else {
-		log.Printf("Bad password for user %s with password %s", user.Email, user.Password)
+		log.Printf("Bad password for user %s with password %s", params.Email, params.Password)
 		respondWithError(w, http.StatusForbidden, "Incorrect email or password")
 	}
 }
