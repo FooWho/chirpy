@@ -277,7 +277,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, params.Email)
 		}
 		log.Printf("User %s logged in with password %s", user.Email, user.Password)
-		loginUserResponse := loginUserResponseParams{ID: user.ID, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt, Email: user.Email, Token: token}
+		loginUserResponse := loginUserResponseParams{ID: user.ID, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt, Email: user.Email, TokenJWT: token}
 		respondWithJSON(w, http.StatusOK, loginUserResponse)
 	} else {
 		log.Printf("Bad password for user %s with password %s", params.Email, params.Password)
