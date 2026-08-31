@@ -156,7 +156,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
-		respondWithError(w, 500, "Error decoding parameters")
+		respondWithError(w, http.StatusInternalServerError, "Error decoding parameters")
 		return
 	}
 	if len(params.Body) <= 140 {
@@ -165,13 +165,13 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		dbChirp, err := cfg.dbQueries.CreateChirp(r.Context(), createChirpParams)
 		if err != nil {
 			log.Printf("Error creating chirp: %s", err)
-			respondWithError(w, 500, "Error creating chirp")
+			respondWithError(w, http.StatusInternalServerError, "Error creating chirp")
 			return
 		}
 		validChirp := databaseChirpToAPIChirp(dbChirp)
-		respondWithJSON(w, 201, validChirp)
+		respondWithJSON(w, http.StatusCreated, validChirp)
 	} else {
-		respondWithError(w, 400, "Chirp too long")
+		respondWithError(w, http.StatusBadRequest, "Chirp too long")
 	}
 }
 
@@ -179,14 +179,14 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 	chirps, err := cfg.dbQueries.GetChirps(r.Context())
 	if err != nil {
 		log.Printf("Error getting chirps: %s", err)
-		respondWithError(w, 500, "Error getting chirps")
+		respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
 		return
 	}
 	apiChirps := make([]apiChirp, 0, len(chirps))
 	for _, chirp := range chirps {
 		apiChirps = append(apiChirps, databaseChirpToAPIChirp(chirp))
 	}
-	respondWithJSON(w, 200, apiChirps)
+	respondWithJSON(w, http.StatusOK, apiChirps)
 }
 
 func (cfg *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
@@ -194,16 +194,16 @@ func (cfg *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
 	parsedId, err := uuid.Parse(id)
 	if err != nil {
 		log.Printf("Error parsing uuid: %s", err)
-		respondWithError(w, 500, "Error parsing uuid")
+		respondWithError(w, http.StatusInternalServerError, "Error parsing uuid")
 		return
 	}
 	chirp, err := cfg.dbQueries.GetChirpById(r.Context(), parsedId)
 	if err != nil {
 		log.Printf("Error getting chirps: %s", err)
-		respondWithError(w, 404, "Chirp not found")
+		respondWithError(w, http.StatusNotFound, "Chirp not found")
 		return
 	}
-	respondWithJSON(w, 200, databaseChirpToAPIChirp(chirp))
+	respondWithJSON(w, http.StatusOK, databaseChirpToAPIChirp(chirp))
 }
 
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
@@ -213,18 +213,18 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
-		respondWithError(w, 500, user.Email)
+		respondWithError(w, http.StatusInternalServerError, user.Email)
 		return
 	}
 	user.HashedPassword, err = auth.HashPassword(user.Password)
 	dbUser, err := cfg.dbQueries.CreateUser(r.Context(), database.CreateUserParams{Email: user.Email, HashedPassword: user.HashedPassword})
 	if err != nil {
 		log.Printf("Error creating user: %s", err)
-		respondWithError(w, 500, user.Email)
+		respondWithError(w, http.StatusInternalServerError, user.Email)
 		return
 	}
 	resp := databaseUserToAPIUser(dbUser)
-	respondWithJSON(w, 201, resp)
+	respondWithJSON(w, http.StatusCreated, resp)
 }
 
 func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
@@ -233,40 +233,39 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 	if err != nil {
 		log.Printf("Error logging in user: %s", err)
-		respondWithError(w, 500, user.Email)
+		respondWithError(w, http.StatusInternalServerError, user.Email)
 	}
 	dbUser, err := cfg.dbQueries.GetUserByEmail(r.Context(), user.Email)
 	if err != nil {
 		log.Printf("Error logging in user: %s", err)
-		respondWithError(w, 500, user.Email)
+		respondWithError(w, http.StatusInternalServerError, user.Email)
 	}
 	match, err := auth.CheckPasswordHash(user.Password, dbUser.HashedPassword)
 	if err != nil {
 		log.Printf("Error logging in user: %s", err)
-		respondWithError(w, 500, user.Email)
+		respondWithError(w, http.StatusInternalServerError, user.Email)
 	}
 	if match {
 		user = databaseUserToAPIUser(dbUser)
 		log.Printf("User %s logged in with password %s", user.Email, user.Password)
-		respondWithJSON(w, 200, user)
+		respondWithJSON(w, http.StatusOK, user)
 	} else {
 		log.Printf("Bad password for user %s with password %s", user.Email, user.Password)
-		respondWithError(w, 401, "Incorrect email or password")
+		respondWithError(w, http.StatusForbidden, "Incorrect email or password")
 	}
 }
 
 func (cfg *apiConfig) getMetrics(w http.ResponseWriter, r *http.Request) {
-	header := w.Header()
-	header.Set("Content-Type", "text/html")
-	w.WriteHeader(200)
-	hits := cfg.getHits()
-	hitString := "<html>\n"
-	hitString += "    <body>\n"
-	hitString += "        <h1>Welcome, Chirpy Admin!</h1>\n"
-	hitString += fmt.Sprintf("        <p>Chirpy has been visited %d times!</p>\n", hits)
-	hitString += "    </body>\n"
-	hitString += "</html>\n"
-	w.Write([]byte(hitString))
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `
+<html>
+<body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+</body>
+</html>
+    `, cfg.getHits())
 }
 
 func (cfg *apiConfig) doReset(w http.ResponseWriter, r *http.Request) {
@@ -275,13 +274,13 @@ func (cfg *apiConfig) doReset(w http.ResponseWriter, r *http.Request) {
 		cfg.fileserverHits = atomic.Int32{}
 		err := cfg.dbQueries.ResetUsers(r.Context())
 		if err != nil {
-			respondWithError(w, 500, "Error resetting users table")
+			respondWithError(w, http.StatusInternalServerError, "Error resetting users table")
 			return
 		}
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	} else {
-		respondWithError(w, 403, "Forbidden")
+		respondWithError(w, http.StatusForbidden, "Forbidden")
 	}
 }
 
