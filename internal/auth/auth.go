@@ -69,6 +69,20 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return tokenStripped, nil
 }
 
+func AuthenticateUser(headers http.Header, tokenSecret string) (uuid.UUID, error) {
+	tokenStripped, err := GetBearerToken(headers)
+	if err != nil {
+		return uuid.UUID{}, errors.New("No bearer token found")
+	}
+	id, err := ValidateJWT(tokenStripped, tokenSecret)
+	if err != nil {
+		return uuid.UUID{}, errors.New("Invalid JWT")
+	} else {
+		return id, nil
+	}
+
+}
+
 func MakeRefreshToken() string {
 	token := make([]byte, 32)
 	rand.Read(token)
