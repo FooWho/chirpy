@@ -69,6 +69,7 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", myCfg.getMetrics)
 	mux.HandleFunc("POST /api/users", myCfg.createUser)
 	mux.HandleFunc("POST /api/login", myCfg.loginUser)
+	mux.HandleFunc("POST /api/polka/webhooks", myCfg.setUserToRed)
 
 	// Protected Endpoints
 	mux.HandleFunc("PUT /api/users", myCfg.middlewareLoggedIn(myCfg.updateUser))
