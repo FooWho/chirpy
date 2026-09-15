@@ -38,9 +38,12 @@ func (cfg *apiConfig) setUserToRed(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, msg)
 		return
 	}
-	dbuser, err := cfg.dbQueries.SetUserToRed(r.Context(), id)
+	_, err = cfg.dbQueries.SetUserToRed(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		// user_id wasn't located
+		msg := fmt.Sprintf("No such user: %s", params.Data.UserID)
+		log.Print(msg)
+		respondWithError(w, http.StatusNotFound, msg)
+		return
 	}
 	if err != nil {
 		msg := fmt.Sprintf("Error setting user to red in setUserToRed: %s", err)
@@ -48,12 +51,5 @@ func (cfg *apiConfig) setUserToRed(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, msg)
 		return
 	}
-
+	w.WriteHeader(204)
 }
-
-//{
-//  "event": "user.upgraded",
-//  "data": {
-//    "user_id": "3311741c-680c-4546-99f3-fc9efac2036c"
-//  }
-//}

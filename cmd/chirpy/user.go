@@ -24,6 +24,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt    time.Time `json:"created_at"`
 		UpdatedAt    time.Time `json:"updated_at"`
 		Email        string    `json:"email"`
+		IsChirpyRed  bool      `json:"is_chirpy_red"`
 		TokenJWT     string    `json:"token"`
 		TokenRefresh string    `json:"refresh_token"`
 	}
@@ -74,6 +75,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:    user.CreatedAt,
 			UpdatedAt:    user.UpdatedAt,
 			Email:        user.Email,
+			IsChirpyRed:  user.IsChirpyRed,
 			TokenJWT:     token,
 			TokenRefresh: refresh,
 		}
@@ -222,6 +224,7 @@ func databaseUserToAPIUser(dbUser database.User) apiUser {
 		CreatedAt:      dbUser.CreatedAt,
 		UpdatedAt:      dbUser.UpdatedAt,
 		Email:          dbUser.Email,
+		IsChirpyRed:    dbUser.IsChirpyRed,
 		HashedPassword: "",
 		Password:       "",
 	}
