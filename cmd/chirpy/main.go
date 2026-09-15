@@ -27,6 +27,7 @@ type apiConfig struct {
 	dbQueries      *database.Queries
 	platform       string
 	tokenSecret    string
+	polkaKey       string
 }
 
 type apiUser struct {
@@ -47,12 +48,13 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	tokenSecret := os.Getenv("TOKEN_SECRET")
+	polkaKey := os.Getenv("POLKA_KEY")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Failed to obtain database\n")
 	}
 	dbQueries := database.New(db)
-	myCfg := &apiConfig{fileserverHits: atomic.Int32{}, dbQueries: dbQueries, platform: platform, tokenSecret: tokenSecret}
+	myCfg := &apiConfig{fileserverHits: atomic.Int32{}, dbQueries: dbQueries, platform: platform, tokenSecret: tokenSecret, polkaKey: polkaKey}
 
 	mux := http.NewServeMux()
 	mux.Handle("/app/",

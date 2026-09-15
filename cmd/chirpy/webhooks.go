@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/FooWho/chirpy/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -18,9 +19,20 @@ func (cfg *apiConfig) setUserToRed(w http.ResponseWriter, r *http.Request) {
 			UserID string `json:"user_id"`
 		} `json:"data"`
 	}
+	ptoken, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		log.Print("Request does not have Authorization header")
+		respondWithError(w, http.StatusUnauthorized, "Missing Authorization Header")
+		return
+	}
+	if ptoken != cfg.polkaKey {
+		msg := "Wrong API key"
+		log.Print(msg)
+		respondWithError(w, http.StatusUnauthorized, msg)
+	}
 	params := upgradeParams{}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		msg := fmt.Sprintf("Error decoding message body in setUserToRed: %s", err)
 		log.Printf("Error decoding message body in setUserToRed: %s", msg)

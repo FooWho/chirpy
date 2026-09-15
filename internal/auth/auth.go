@@ -69,6 +69,15 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return tokenStripped, nil
 }
 
+func GetAPIKey(headers http.Header) (string, error) {
+	tokenFull := headers.Get("Authorization")
+	tokenStripped, found := strings.CutPrefix(tokenFull, "ApiKey ")
+	if found != true {
+		return "", errors.New("No API token found")
+	}
+	return tokenStripped, nil
+}
+
 func AuthenticateUser(headers http.Header, tokenSecret string) (uuid.UUID, error) {
 	tokenStripped, err := GetBearerToken(headers)
 	if err != nil {
