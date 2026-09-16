@@ -111,17 +111,43 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.dbQueries.GetChirps(r.Context())
-	if err != nil {
-		log.Printf("Error getting chirps: %s", err)
-		respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
+	author_id_str := r.URL.Query().Get("author_id")
+	if author_id_str != "" {
+		author_id, err := uuid.Parse(author_id_str)
+		if err != nil {
+			msg := fmt.Sprintf("Could not generate uuid for %s", author_id_str)
+			log.Print(msg)
+			respondWithError(w, http.StatusInternalServerError, msg)
+			return
+		}
+		chirps, err := cfg.dbQueries.GetChirpsByAuthor(r.Context(), author_id)
+		if err != nil {
+			msg := fmt.Sprintf("Could not get chirps for %s", author_id)
+			log.Print(msg)
+			respondWithError(w, http.StatusInternalServerError, msg)
+			return
+		}
+		apiChirps := make([]apiChirp, 0, len(chirps))
+		for _, chirp := range chirps {
+			apiChirps = append(apiChirps, databaseChirpToAPIChirp(chirp))
+		}
+		respondWithJSON(w, http.StatusOK, apiChirps)
+		return
+	} else {
+		chirps, err := cfg.dbQueries.GetChirps(r.Context())
+		if err != nil {
+			log.Printf("Error getting chirps: %s", err)
+			respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
+			return
+		}
+		apiChirps := make([]apiChirp, 0, len(chirps))
+		for _, chirp := range chirps {
+			apiChirps = append(apiChirps, databaseChirpToAPIChirp(chirp))
+		}
+		respondWithJSON(w, http.StatusOK, apiChirps)
 		return
 	}
-	apiChirps := make([]apiChirp, 0, len(chirps))
-	for _, chirp := range chirps {
-		apiChirps = append(apiChirps, databaseChirpToAPIChirp(chirp))
-	}
-	respondWithJSON(w, http.StatusOK, apiChirps)
+
 }
 
 func (cfg *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
