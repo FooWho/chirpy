@@ -120,7 +120,16 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, msg)
 			return
 		}
-		chirps, err := cfg.dbQueries.GetChirpsByAuthor(r.Context(), author_id)
+		order := r.URL.Query().Get("sort")
+		fmt.Printf("Sorting for: %s", order)
+		sortDesc := false
+		if order == "" || order == "asc" {
+			sortDesc = false
+		} else {
+			sortDesc = true
+		}
+		queryParams := database.GetChirpsByAuthorParams{UserID: author_id, SortDesc: sortDesc}
+		chirps, err := cfg.dbQueries.GetChirpsByAuthor(r.Context(), queryParams)
 		if err != nil {
 			msg := fmt.Sprintf("Could not get chirps for %s", author_id)
 			log.Print(msg)
@@ -134,7 +143,15 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusOK, apiChirps)
 		return
 	} else {
-		chirps, err := cfg.dbQueries.GetChirps(r.Context())
+		order := r.URL.Query().Get("sort")
+		sortDesc := false
+		if order == "" || order == "asc" {
+			sortDesc = false
+		} else {
+			sortDesc = true
+		}
+		fmt.Printf("sort=%v", sortDesc)
+		chirps, err := cfg.dbQueries.GetChirps(r.Context(), sortDesc)
 		if err != nil {
 			log.Printf("Error getting chirps: %s", err)
 			respondWithError(w, http.StatusInternalServerError, "Error getting chirps")

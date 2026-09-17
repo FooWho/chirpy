@@ -29,6 +29,7 @@ func (cfg *apiConfig) setUserToRed(w http.ResponseWriter, r *http.Request) {
 		msg := "Wrong API key"
 		log.Print(msg)
 		respondWithError(w, http.StatusUnauthorized, msg)
+		return
 	}
 	params := upgradeParams{}
 	decoder := json.NewDecoder(r.Body)

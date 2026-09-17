@@ -1,6 +1,6 @@
 POST http://localhost:8080/api/chirps HTTP/1.1
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaGlycHktYWNjZXNzIiwic3ViIjoiMDYyZjVlZWUtMjMyMC00ZGRjLTljODgtOGQwOTY5YzgzM2U5IiwiZXhwIjoxNzg4OTA3ODc2LCJpYXQiOjE3ODg5MDQyNzZ9.v2IkACZF_xeBTd0ILXEItUWLIxVVqlylQB0FrRi5P0M
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaGlycHktYWNjZXNzIiwic3ViIjoiYWJhOGM3YWItOTI0Mi00NGJkLWJlYWQtNjVhYzU3MTY2ZDM2IiwiZXhwIjoxNzg5NjExODg3LCJpYXQiOjE3ODk2MDgyODd9.mEQkd2tIw14b5-M4Gi-9yNgnUXpB4SvsOTJFlIngQws
 
 {
     "body": "This is a different chirp with a different bad word - kerfuffle - ."

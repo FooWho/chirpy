@@ -1,9 +1,10 @@
 POST http://localhost:8080/api/polka/webhooks HTTP/1.1
 content-type: application/json
+Authorization: ApiKey f271c81ff7084ee5b99a5091b42d486e
 
 {
   "event": "user.upgraded",
   "data": {
-    "user_id": "60e5382e-3940-4ba4-bded-4643dafd6613"
+    "user_id": "aba8c7ab-9242-44bd-bead-65ac57166d36"
   }
 }
